@@ -3,6 +3,7 @@
 This README covers some fundamental JavaScript concepts that are essential for writing efficient, clean, and maintainable code. These concepts include **Throttling and Debouncing**, **Event Delegation**, and **Closures**. Each section contains explanations, code examples, and practical thoughts to deepen your understanding.
 
 ***
+
 ## 1. Throttling and Debouncing
 
 * These techniques help control how often a function is executed in response to events, which is crucial for performance optimization, especially in events that fire rapidly like scrolling or resizing.
@@ -29,7 +30,6 @@ This README covers some fundamental JavaScript concepts that are essential for w
 
     document.getElementById('searchInput').addEventListener('input', handleInput);
     ```
-
 
 * **Throttling**
   * What it does: Limits the function to execute not more than once every N milliseconds.
@@ -60,6 +60,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
     console.log('Scrolled!');
     }, 1000));
     ```
+
 ***
 
 ## 2. Event Delegation
@@ -89,6 +90,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
     }
     });
     ```
+
 * **More complex example with data attributes**
 
     ``` xml
@@ -98,7 +100,6 @@ This README covers some fundamental JavaScript concepts that are essential for w
     <button data-action="search">Search</button>
     </div>
     ```
-
 
     ```javascript
     const menu = document.getElementById('menu');
@@ -129,7 +130,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
 * A **closure** gives you access to an outer function’s scope from an inner function, **even after the outer function has executed**. This is crucial for creating private variables and stateful functions.
 
 * **Example**: Stateful button counter
-    
+
     ```xml
     <button id="btn1">Like</button>
     <button id="btn2">Like</button>
@@ -160,7 +161,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
 * **Promise:**
   * A **Promise** is an object representing the eventual **completion or failure** of an **asynchronous operation**.
 
-  * **Use Promise when:** 
+  * **Use Promise when:**
     * When you want to manage asynchronous tasks with chaining, or handle multiple tasks in sequence or parallel.
     * When targeting environments where async/await might not be supported.
 
@@ -170,6 +171,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
   * *Rejected*: The operation failed
   
   **Basic Syntax:**
+
   ``` javascript
   const promise = new Promise(function(resolve, reject) {
     // async operation
@@ -184,7 +186,9 @@ This README covers some fundamental JavaScript concepts that are essential for w
     .then(msg => console.log(msg))   // Runs on resolve
     .catch(err => console.error(err));  // Runs on reject
   ```
+
   **Example of a Promise:**
+
   ```javascript
   function fakeApiCall() {
     return new Promise((resolve, reject) => {
@@ -207,7 +211,8 @@ This README covers some fundamental JavaScript concepts that are essential for w
         console.error("Failed:", error);
     });
   ```
-  **Promise Methods**
+  
+  * **Promise Methods**
     JavaScript provides several static methods for working with promises:
 
     * **Promise.all():** Waits for all promises to be fulfilled or any to be rejected.
@@ -245,6 +250,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
     * For most modern JavaScript projects where ES2017+ is supported.
 
   **Example**
+
   ```javascript
   async function fetchUserData(userId) {
     try {
@@ -260,6 +266,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
 
   fetchUserData(1);
   ```
+
   **Parallel Asynchronous Tasks**
   Using **Promise.all** for multiple async operations:
 
@@ -279,6 +286,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
   ```
   
   **Advanced Example: Uploading Files**
+
   ```javascript
   async function uploadFiles(files) {
     try {
@@ -305,6 +313,7 @@ This README covers some fundamental JavaScript concepts that are essential for w
     { name: "file2.txt", size: 0 }, // will trigger error
   ]);
   ```
+
   **More to Promises and Async/Await in Javascript**
   * Asynchronous programming is core part of Javascript, helping you handle oplerations that take time like - fetching data or reading files - without blocking your entire program.
 
@@ -315,17 +324,18 @@ This README covers some fundamental JavaScript concepts that are essential for w
 ## 5. Higher Order Functions (HOFs)
 
 * A **Higher-Order Function (HOF)** is a function that **does one or both** of the following:
-    * Takes another function as an argument
-    * Returns a function as its result
+  * Takes another function as an argument
+  * Returns a function as its result
 
 * Common Examples of **Built-in HOFs** in JavaScript:
-    * **map()**: Transforms array elements
-    * **filter()**: Filters elements based on a condition
-    * **reduce()**: Reduces array to single value
-    * **forEach()**: Iterates over each element (no return value)
-    * **Sort()**: Sorts array based on a comparator fucntion
+  * **map()**: Transforms array elements
+  * **filter()**: Filters elements based on a condition
+  * **reduce()**: Reduces array to single value
+  * **forEach()**: Iterates over each element (no return value)
+  * **Sort()**: Sorts array based on a comparator fucntion
 
 * **Custom Higher-Order Function Example**
+
   ```javascript
   function repeat(operation, times) {
     for (let i = 0; i < times; i++) {
@@ -339,10 +349,12 @@ This README covers some fundamental JavaScript concepts that are essential for w
   // Hello!
   // Hello!
   ```
+
 * **Real-World Project use case:**
   * **Scenerio: Middleware in Express.js (Web Server)**
     * Middleware functions in Express.js are HOFs — they take other functions and control how/when they are run.
-    ```javascript 
+  
+    ```javascript
     const express = require('express');
     const app = express();
 
@@ -363,9 +375,11 @@ This README covers some fundamental JavaScript concepts that are essential for w
 
     app.listen(3000, () => console.log('Server started on port 3000'));
     ```
+
   * **Scenerio: Event Handling Wrapper**
     * This is useful in search input boxes, where you don’t want to make an API call on every keystroke.
-    ```javascript 
+  
+    ```javascript
     // Higher-order function to debounce an event
     function debounce(fn, delay) {
     let timeout;
@@ -383,7 +397,9 @@ This README covers some fundamental JavaScript concepts that are essential for w
     }, 300)
     );
     ```
+
   * **Scenerio: API Retry Mechanism (HOF for Robustness)**
+
     ```javascript
     function withRetry(fn, retries = 3) {
         return async function (...args) {
