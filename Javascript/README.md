@@ -411,3 +411,127 @@ This README covers some fundamental JavaScript concepts that are essential for w
 
     fetchUserWithRetry().then(console.log).catch(console.error);
     ```
+
+## 6. Functional Programming Concepts:
+
+Functional Programming is a **paradigm** that treats computation as the **evaluation of mathematical functions** and **avoids changing state and mutable data**.
+
+---
+
+### 1. Pure Functions
+
+A pure function is a function that:
+* Always returns the same output for the same input.
+* Does not cause side effects (like modifying external variables, DOM, file systems, etc.)
+
+* **Impure function Example (Bad)**
+    ```javascript
+    let counter = 0;
+
+    function incrementCounter() {
+    counter += 1;
+    return counter;
+    }
+
+    console.log(incrementCounter()); // 1
+    console.log(incrementCounter()); // 2 (Different result for same call)
+    ```
+
+* **Why it is impure?**
+  * It modifies an external variable *counter*
+  * It doesn't always return the same result.
+
+* **Pure Function Example**
+    ```javascript
+    function increment(value) {
+    return value + 1;
+    }
+
+    console.log(increment(5)); // 6
+    console.log(increment(5)); // 6 (Always same result)
+    ```
+
+* **Why it is Pure?**
+  * It doesn’t change anything outside its scope.
+  * It always returns the same result for the same input.
+
+
+### 2. Immutability
+Immutability means once data is created, it cannot be changed. Instead of modifying existing objects/arrays, we create new copies with updated data.
+
+* **Mutable Example (Bad)**
+    ```javascript
+    const user = { name: "Alice", age: 25 };
+
+    function makeOlder(user) {
+    user.age += 1;
+    return user;
+    }
+
+    console.log(makeOlder(user)); // { name: "Alice", age: 26 }
+    console.log(user);            // Original object mutated!
+    ```
+
+* **What's wrong?**
+  * The original user object is changed (side effect).
+  * Makes debugging and state tracking harder in real apps.
+
+* **Immutable Example**
+    ```javascript
+    const user = { name: "Alice", age: 25 };
+
+    function makeOlder(user) {
+    return { ...user, age: user.age + 1 };
+    }
+
+    const newUser = makeOlder(user);
+    console.log(newUser); // { name: "Alice", age: 26 }
+    console.log(user);    // { name: "Alice", age: 25 } — original remains unchanged
+    ```
+
+* **Why it is good?**
+  * We don’t change the original object.
+  * Safer, especially in React, Redux, or concurrent environments.
+
+### 3. Function Composition
+Function Composition is the process of combining multiple smaller functions to build a more complex one.
+
+* **Mutable composition Example**
+  ```javascript
+  const trim = str => str.trim();
+  const toLower = str => str.toLowerCase();
+  const wrapInDiv = str => `<div>${str}</div>`;
+
+  // Compose manually
+  const transform = str => wrapInDiv(toLower(trim(str)));
+
+  console.log(transform("   Hello World   ")); 
+  // <div>hello world</div>
+  ```
+  
+---
+#### Scenario: Transform product data in an immutable and functional way
+```javascript
+const products = [
+  { name: "  Laptop ", price: 1000 },
+  { name: "  Phone ", price: 500 },
+];
+
+const trim = str => str.trim();
+const toUpper = str => str.toUpperCase();
+const applyTax = price => price * 1.1;
+
+const transformProduct = product => ({
+  ...product,
+  name: toUpper(trim(product.name)),
+  price: applyTax(product.price),
+});
+
+const transformedProducts = products.map(transformProduct);
+
+console.log(transformedProducts);
+// [
+//   { name: "LAPTOP", price: 1100 },
+//   { name: "PHONE", price: 550 }
+// ]
+```
