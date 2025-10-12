@@ -560,3 +560,327 @@ console.log(transformedProducts);
 //   { name: "PHONE", price: 550 }
 // ]
 ```
+## 7. Prototype & Inheritance
+A prototype is a regular object that an object delegates to for property and method lookup. Think of it as a fallback object: if property x is not on obj, the runtime asks obj's prototype for x, and continues up the chain until it finds the property or reaches null.
+
+* The internal prototype pointer is commonly called [[Prototype]].
+* You can get it via Object.getPrototypeOf(obj) and (non-standard but common) via obj.__proto__.
+* Functions (constructor functions) have a .prototype property which becomes the [[Prototype]] of objects created via new.
+
+### 1. Why JavaScript uses prototypes — what problem it solves
+* **Memory efficiency**: Instead of each instance holding copies of methods, instances can delegate to a single prototype object that contains shared methods.
+* **Dynamic extension**: You can add methods to a prototype at runtime and all existing instances immediately see the new methods.
+
+### 2. Property lookup & prototype chain
+when evaluating `obj.prop`: 
+  1.  Check if `prop` exists as an own property on `obj`. If yes, return it.
+  2.  Otherwise, get `proto = Object.getPrototypeOf(obj)`.
+  3.  If `proto` is `null`, property not found (result `undefined`).
+  4.  Else repeat step 1 with `proto`.
+
+**Shadowing**: If an own property has the same name as a prototype the own property hides (shadows) the prototype one.
+
+**Important Operators**: 
+  1. **in**: returns `true` if property exists on object or anywhere up the prototype chain.
+  2. **hasOwnProperty**: returns `true` only for own properties.
+  3. **instanceof**: checks whether an object's prototype chain contains `Ctor.prototype`
+
+### 3. How to create objects & patterns
+1. **Constructor function + prototype (classic)**: 
+  
+   ```javascript
+   function Person(name) {
+     this.name = name;
+     // DON'T put methods here (they'd be created per-instance)
+   }
+
+   Person.prototype.greet = function() {
+     return `Hi, I'm ${this.name}`;
+   };
+
+   const a = new Person('Alice');
+   const b = new Person('Bob');
+   console.log(a.greet()); // "Hi, I'm Alice"
+   console.log(a.greet === b.greet); // true -> same function on prototype
+   ```
+
+2. **`class` syntax (ES6) - syntatic sugar**
+   
+   ```javascript
+   class Person {
+   constructor(name) { this.name = name; }
+     greet() { return `Hi, I'm ${this.name}`; }
+   }
+
+
+   const p = new Person('Sam');
+   console.log(Object.getPrototypeOf(p) === Person.prototype); // true
+   ```
+   `class` does under-the-hood the same prototype wiring as constructor functions; it's mainly clearer syntax + some niceties (like `super`).
+
+3. **`Object.create()` — pure delegation**
+   
+   ```javascript
+    const animalProto = {
+      speak() { return `${this.name} makes a noise` }
+    };
+
+
+    const dog = Object.create(animalProto);
+    dog.name = 'Rex';
+    console.log(dog.speak()); // Rex makes a noise
+   ```
+   `Object.create(proto)` creates an object whose `[[Prototype]]` is `proto` without needing constructor functions. Great for composing behavior and avoiding `new`.
+
+4. **`Object.create()` — pure delegation**
+   
+   ```javascript
+    function createUser(name) {
+    const user = Object.create(userMethods);
+    user.name = name;
+    return user;
+    }
+
+
+    const userMethods = {
+    sayName() { return this.name; }
+    };
+   ```
+   This pattern avoids classes and is explicit about delegation.
+
+### 4. Best practice and cautions
+1. **Best practices**
+   * Prefer composition over deep inheritance chains. Use small objects that compose behavior instead of long prototype chains.
+   * Put methods on prototypes, not inside constructors, unless method needs unique per-instance closure state.
+   * Use Object.create(null) for plain hash maps to avoid prototype collisions.
+  
+2. **Cautions**
+   * **Never modify built-in prototypes** (like `Array.prototype`) in production libraries—this can break other code. (Acceptable in small apps or polyfills with caution.)
+   * **Be careful with this**: methods expect `this` to be the instance. If you pass methods as callbacks, `this` can be lost — use `.bind()`, arrow functions (but arrow functions have lexical `this` and cannot be used as prototype methods expecting dynamic `this`), or call with `.call`/`.apply`.
+   * **Arrow functions as prototype methods**: Don’t use `arrow` functions when you expect `this` to refer to the instance — arrow functions capture `this` lexically at creation time.
+
+
+## 8. Event Loop, Call Stack, Microtasks & Macrotasks (Deep Notes)
+
+### 1. The Core Concept — How JavaScript Executes Code
+JavaScript is **single-threaded** — meaning it has only one main thread of execution. That means **only one piece of code runs at a time** in the main thread.
+
+But JavaScript also handles asynchronous operations (like timers, network calls, DOM events) without blocking. This is achieved using the **event loop, call stack, and task queues**.
+
+### 2. Call Stack — The Execution Stack
+The `call stack` is a data structure that keeps track of where JavaScript is in program execution.
+* When a function is invoked, it’s pushed onto the stack.
+* When the function finishes, it’s popped off.
+
+**Example**
+
+```javascript
+function greet() {
+console.log('Hello');
+}
+
+function start() {
+greet();
+console.log('Start done');
+}
+
+start();
+```
+
+**Step-by-step execution:**
+1. Global execution context created → pushed to the stack.
+2. `start()` is called → pushed to the stack.
+3. Inside `start()`, `greet()` is called → pushed to the stack.
+4. `console.log('Hello')` runs → printed.
+5. `greet()` finishes → popped off.
+6. `console.log('Start done')` runs.
+7. `start()` finishes → popped off.
+   * The **call stack** executes code synchronously — one frame at a time.
+
+If a long-running operation (like a network call or timer) were handled here, it would block everything. That’s where the **event loop** comes in.
+
+### 3. Event Loop 
+The **event loop** is a constantly running process that checks **if the call stack is empty**, and if so, **pushes the next task from the queues** (micro or macro) to be executed.
+
+It checks tasks in the following order:
+1. Execute all tasks in the **call stack**.
+2. When stack is empty, run all **microtasks** (if any).
+3. Then take one **macrotask** (if any) and execute it.
+4. Repeat the cycle.
+
+### 4. Microtasks vs Macrotasks
+
+1. **Microtasks**:
+   * Come from **Promise callbacks**, `queueMicrotask()`, and **MutationObserver**.
+   * Run **immediately after** the current stack is empty but **before** the next macrotask.
+   * They have **higher priority** — meaning they are executed before rendering or timers.
+   * 
+2. **Macrotasks**: 
+   * Come from **setTimeout**, **setInterval**, **setImmediate (Node.js)**, and **I/O events**.
+   * Run after the microtask queue is empty.
+
+### 5. Understanding Event Loop by code
+
+1. **Mixing Promises and setTimeout**
+    ```javascript
+    console.log('1');
+    setTimeout(() => console.log('2'), 0);
+    Promise.resolve().then(() => console.log('3'));
+    console.log('4');
+    ```
+    **Step-by-step breakdown**:
+    1. `console.log('1')` → runs immediately (sync).
+    2. `setTimeout(..., 0)` → callback scheduled as a **macrotask**.
+    3. `Promise.resolve().then(...)` → callback scheduled as a **microtask**.
+    4. `console.log('4')` → runs (sync).
+    5. Stack is now empty.
+    6. **Event loop** checks **microtask** queue → finds `console.log('3')` → runs.
+    7. Then moves to **macrotask** queue → runs `console.log('2')`.
+    
+    **Output**:
+
+    ```
+    1
+    4
+    3
+    2
+    ```
+    Even though both `setTimeout` and `Promise` are asynchronous, **microtasks always run before macrotasks**.
+
+## 9. LocalStorage, SessionStorage & Cookies
+
+### 1. The Core Idea — Why Client-Side Storage Exists
+In web applications, you often need to store small amounts of data on the user’s browser — such as authentication tokens, preferences, shopping cart items, or session state — **without relying on the server every time.**
+
+Before HTML5, **cookies** were the only way to persist data in the browser. But cookies have limitations:
+ * They’re sent with every HTTP request (increasing payload size).
+ * They have a small storage limit (~4KB).
+ * Managing them can be clunky.
+
+To solve this, **Web Storage API** introduced:
+ * `localStorage` — persistent storage that remains even after the browser is closed.
+ * `sessionStorage` — temporary storage that lasts until the browser tab is closed.
+
+### 2. LocalStorage — Persistent Key-Value Storage
+`localStorage` allows web apps to store data persistently in the browser across sessions and tabs. Data persists even after a page refresh or closing the browser.
+
+#### Example 1. Storing and Retrieving Data
+
+```javascript
+// Save user preferences
+localStorage.setItem('theme', 'dark');
+localStorage.setItem('fontSize', '16px');
+
+// Retrieve
+const theme = localStorage.getItem('theme');
+const fontSize = localStorage.getItem('fontSize');
+
+console.log(`Theme: ${theme}, Font Size: ${fontSize}`);
+
+// Remove a single item
+localStorage.removeItem('fontSize');
+
+// Clear everything
+localStorage.clear();
+```
+
+**Explanation**
+   * setItem(key, value) → stores as string key-value pairs.
+   * Values are persisted per domain, not per page.
+   * All data is stringified, so you need JSON.stringify() for objects.
+  
+#### Example 2. Storing Complex Data Objects
+
+```javascript
+const user = {
+name: 'Alice',
+loggedInAt: new Date().toISOString(),
+roles: ['admin', 'editor']
+};
+
+// Store
+localStorage.setItem('user', JSON.stringify(user));
+
+// Retrieve
+const userData = JSON.parse(localStorage.getItem('user'));
+console.log(userData.name); // Alice
+```
+
+**Use `localStorage` when**:
+* You need **persistent** client-side state.
+* Examples:
+  * Dark mode / language preference.
+  * Caching small JSON API responses.
+  * Remembering user progress (e.g., learning apps).
+
+### 3. SessionStorage - Temporary Tab-Scoped Storage
+`sessionStorage` works just like `localStorage` but the data lasts **only until the tab or window is closed**. It’s not shared across tabs.
+
+**Example**:
+
+```javascript
+// Set and get temporary session data
+sessionStorage.setItem('sessionId', 'abc123xyz');
+console.log(sessionStorage.getItem('sessionId')); // abc123xyz
+
+// On reload, data persists in same tab
+// On new tab or close, data is gone
+```
+**Real-World Example**:
+In **banking or payment gateways**, temporary data like a transaction ID or OTP session is stored in `sessionStorage`. This ensures that if a user opens another tab or closes the page, the sensitive data doesn’t persist.
+
+```javascript
+function initializePaymentSession(userId) {
+const sessionToken = crypto.randomUUID();
+sessionStorage.setItem('paymentSession', JSON.stringify({ userId, sessionToken }));
+return sessionToken;
+}
+```
+
+**Use sessionStorage when**:
+* You need temporary, tab-specific data.
+* Examples:
+  * Current checkout session in an e-commerce flow.
+  * Form data in a single-page flow.
+  * Temporary OAuth flow tokens.
+
+### 4. Cookies - The Old Guard of Browser Storage
+Cookies are small key-value pairs stored in the browser and **sent with every HTTP request** to the same domain. They are used heavily for authentication and tracking.
+
+**Example**:
+
+```javascript
+// Set cookie (expires in 7 days)
+const expiry = new Date();
+expiry.setDate(expiry.getDate() + 7);
+
+document.cookie = `token=abc123; expires=${expiry.toUTCString()}; path=/; Secure; SameSite=Strict`;
+
+// Read cookie
+console.log(document.cookie); // token=abc123
+```
+
+**Explanation**:
+   * Each cookie has attributes: expires, path, domain, Secure, and SameSite.
+   * Secure means cookie is only sent over HTTPS.
+   * HttpOnly means it’s not accessible via JavaScript (helps prevent XSS).
+
+**Example 2**:
+
+```javascript
+function getCookie(name) {
+return document.cookie
+.split('; ')
+.find(row => row.startsWith(name + '='))
+?.split('=')[1];
+}
+
+console.log(getCookie('token'));
+```
+
+**Use cookies when**:
+* You need server-accessible data or secure authentication tokens.
+* Examples:
+  * JWTs or session IDs for login.
+  * Analytics tracking.
+  * CSRF protection tokens.
