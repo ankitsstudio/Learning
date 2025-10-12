@@ -884,3 +884,144 @@ console.log(getCookie('token'));
   * JWTs or session IDs for login.
   * Analytics tracking.
   * CSRF protection tokens.
+
+## 10. DOM manipulation
+DOM manipulation is indeed one of the **most essential and powerful concepts** in JavaScript.
+
+### 1.What is DOM:
+**DOM (Document Object Model)** is an **in-memory** representation of the **HTML structure of a web page**.
+When a browser loads a webpage, it parses the HTML and **creates a tree-like structure** — where every HTML element becomes a node (an object) that can be **accessed and manipulated via JavaScript**.
+
+Before the DOM, HTML pages were **static** — no interactivity.
+If you wanted to change content, you had to **reload the page**.
+The DOM was introduced so JavaScript could **dynamically interact** with web pages —
+add/remove elements, handle user actions, and update content **without page reloads**.
+
+**Problems Solved by DOM**:
+  * Enable **dynamic rendering** (e.g., add new cards, images, forms).
+  * Handle **user interactions** in real-time (clicks, scrolls, inputs).
+  * Power **Single Page Applications** (SPAs).
+
+### 2. Internal Working — DOM Tree
+When HTML is parsed:
+
+```html
+<html>
+  <body>
+    <div id="app">
+      <h1>Hello World</h1>
+      <button>Click Me</button>
+    </div>
+  </body>
+</html>
+```
+
+It becomes a DOM Tree:
+
+```less
+Document
+└── html
+    └── body
+        └── div#app
+            ├── h1
+            └── button
+```
+
+Every tag = a node, and you can access or modify it with JavaScript like:
+
+```javascript
+document.getElementById('app').children[0].textContent = "Hi Developer!";
+```
+
+### 3. DOM manipulation example - Mini task manager
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DOM Manipulation Example</title>
+  <style>
+    .task { padding: 8px; margin: 6px 0; border-radius: 5px; background: #f5f5f5; }
+    .completed { text-decoration: line-through; color: gray; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h2 id="title">Task Manager</h2>
+    <input id="taskInput" type="text" placeholder="Add new task" />
+    <button id="addBtn">Add Task</button>
+    <ul id="taskList"></ul>
+    <button id="clearAll">Clear All</button>
+  </div>
+
+  <script>
+    // ======== DOM SELECTORS =========
+    const input = document.getElementById('taskInput');
+    const addBtn = document.querySelector('#addBtn');
+    const list = document.querySelector('#taskList');
+    const title = document.getElementById('title');
+    const clearAll = document.getElementById('clearAll');
+
+    // ======== MODIFY CONTENT =========
+    title.textContent = "📝 My Task Manager";
+    title.style.color = "#2a9d8f";
+
+    // ======== EVENT HANDLER =========
+    addBtn.addEventListener('click', () => {
+      if (!input.value.trim()) return;
+
+      // ======== CREATE ELEMENTS =========
+      const li = document.createElement('li');
+      li.classList.add('task');
+      li.textContent = input.value;
+
+      // Add a delete button dynamically
+      const delBtn = document.createElement('button');
+      delBtn.textContent = "❌";
+      delBtn.style.marginLeft = "10px";
+      li.appendChild(delBtn);
+
+      // Append to DOM (insert at end)
+      list.appendChild(li);
+
+      // ======== TRAVERSAL EXAMPLE =========
+      console.log("Parent:", li.parentElement.id);  // taskList
+      console.log("First child of list:", list.firstElementChild?.textContent);
+
+      // ======== EVENT DELEGATION =========
+      li.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+          // Delete this li
+          list.removeChild(li);
+        } else {
+          // Toggle completed
+          li.classList.toggle('completed');
+        }
+      });
+
+      input.value = '';
+    });
+
+    // ======== REMOVE ALL TASKS =========
+    clearAll.addEventListener('click', () => {
+      // Use DocumentFragment for demonstration
+      const fragment = document.createDocumentFragment();
+      const msg = document.createElement('p');
+      msg.textContent = "All tasks cleared ✅";
+      msg.style.color = "#e76f51";
+      fragment.appendChild(msg);
+
+      list.replaceChildren(); // Clears all child elements
+      list.appendChild(fragment);
+    });
+
+    // ======== ATTRIBUTE MANIPULATION =========
+    input.setAttribute('maxlength', '50');
+    console.log(input.getAttribute('maxlength')); // 50
+  </script>
+</body>
+</html>
+
+```
+
