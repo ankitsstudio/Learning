@@ -1025,3 +1025,198 @@ document.getElementById('app').children[0].textContent = "Hi Developer!";
 
 ```
 
+## 11. Fetch API and Axios
+
+JavaScript developers commonly use Fetch API and Axios to perform HTTP network requests — essential to communicate with external servers and APIs, retrieve data, or send updates.
+
+### Why Are Fetch and Axios Important?
+ * **They enable web apps to interact with backends** — fetch JSON, submit forms, authenticate users.
+ * Both are **Promise-based**, allowing simpler asynchronous code compared to older methods like `XMLHttpRequest`.
+ * Both are Promise-based, allowing simpler asynchronous code compared to older methods like XMLHttpRequest.
+
+### What is fetch API
+Fetch is a native browser API (built-in) that provides a simple interface for HTTP requests.
+
+* **Example (Get)**:
+
+  ```javascript
+  fetch('https://jsonplaceholder.typicode.com/posts/1')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json(); // manually parsing JSON
+    })
+    .then(data => console.log(data))
+    .catch(error => console.error('Fetch error:', error));
+  ```
+
+* **Example (Post)**
+  
+  ```js
+  const url = 'https://jsonplaceholder.typicode.com/posts';
+  const options = {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json;charset=UTF-8'
+    },
+    body: JSON.stringify({ a: 10, b: 20 }),
+  };
+
+  fetch(url, options)
+    .then(response => {
+      if (!response.ok) throw new Error('Network response was not ok');
+      return response.json();
+    })
+    .then(data => console.log(data))
+    .catch(error => console.error('Fetch error:', error));
+  ```
+
+* **Important notes**:
+  * Fetch does not reject the Promise for HTTP errors (like 404 or 500). You must check response.ok.
+  * Manual JSON parsing needed with `.json()` method (Automatic `response.data`).
+
+### What is Axios?
+Axios is a popular third-party JavaScript library that provides a more feature-rich HTTP client.
+
+* **Basic Example of Axios (GET request):**
+
+  ```js
+  axios.get('https://jsonplaceholder.typicode.com/posts/1')
+    .then(response => console.log(response.data)) // auto JSON parsing
+    .catch(error => console.error('Axios error:', error));
+  ```
+
+* **Axios POST example**
+
+  ```js
+  const url = 'https://jsonplaceholder.typicode.com/posts';
+  const data = { a: 10, b: 20 };
+
+  axios.post(url, data, {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json;charset=UTF-8'
+    }
+  }).then(({ data }) => {
+    console.log(data);
+  }).catch(error => {
+    console.error('Axios error:', error);
+  });
+  ```
+
+* **Notable Axios Features:**
+  * Automatically parses JSON responses.
+  * Rejects Promise for both network errors and HTTP errors (like 404).
+  * Supports request/response interceptors (e.g., for adding auth tokens).
+  * Allows request cancellation and timeouts out-of-the-box.
+  * Supports older and server-side environments (Node.js) seamlessly.
+
+### Interceptors:
+Interceptors, for an HTTP client API like Axios, are **functions that the client runs automatically for every request before it is sent and/or for every response before it is returned to your application code**.
+
+They allow you to **intercept** and **modify** the HTTP traffic globally.
+
+#### How Interceptors works;
+Axios has two main types of interceptors:
+
+* **Request Interceptors**: Run before a request is sent to the server.
+  * **Purpose**: Modify the outgoing configuration (headers, URL, data).
+  * **Example**: Automatically adding an Authorization header with a security token (JWT) to every request.
+
+  ```js
+  // api-client.js
+
+  import axios from 'axios';
+
+  // 1. Create a custom Axios instance
+  const apiClient = axios.create({
+    baseURL: 'https://api.yourcompany.com/v1',
+    timeout: 15000, // 15 seconds
+  });
+
+  // 2. Request Interceptor: Automatically add the JWT token
+  apiClient.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem('authToken');
+
+      // If a token exists, add it to the Authorization header
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+
+      // You could also turn on a global loading spinner here
+      // document.body.classList.add('loading');
+
+      return config;
+    },
+    (error) => {
+      // Handle request errors (e.g., network issues)
+      return Promise.reject(error);
+    }
+  );
+  ```
+
+* **Response Interceptors**: Run after the server responds but before the data is passed to your `.then()` or `await` block.
+  * Purpose: Modify the incoming response data or handle errors globally.
+  * Example: Checking for an HTTP status code of `401 Unauthorized` and automatically redirecting the user to the login page.
+
+  ```js
+  // api-client.js (continued)
+
+  // 3. Response Interceptor: Handle errors globally
+  apiClient.interceptors.response.use(
+    (response) => {
+      // Hide the global loading spinner
+      // document.body.classList.remove('loading');
+
+      // Return the response data
+      return response;
+    },
+    (error) => {
+      // Hide the global loading spinner
+      // document.body.classList.remove('loading');
+
+      const status = error.response ? error.response.status : null;
+
+      if (status === 401) {
+        // 🚨 REAL-WORLD LOGIC: Session expired or invalid token
+        console.error('Unauthorized access. Logging out user.');
+
+        // Clear the invalid token
+        localStorage.removeItem('authToken');
+
+        // Redirect user to the login page (e.g., using React Router, Vue Router, etc.)
+        window.location.href = '/login?session=expired';
+
+        // Prevent further processing of the error in the local component
+        return Promise.reject(new Error('Session Expired'));
+      }
+
+      // For all other errors (404, 500, etc.), pass them on
+      return Promise.reject(error);
+    }
+  );
+
+  export default apiClient;
+  ```
+
+**How it's Used in the App:**
+  Instead of using axios.get('/profile'), the application uses the configured instance:
+
+```js
+  import apiClient from './api-client';
+
+  async function fetchUserData() {
+    // This single line of code automatically includes the token and handles 401 errors!
+    try {
+      const response = await apiClient.get('/users/me');
+      console.log(response.data);
+    } catch (error) {
+      // This catch only runs for errors that ARE NOT 401 (e.g., 404, 500)
+      console.error('Failed to fetch data:', error);
+    }
+  }
+```
+

@@ -179,3 +179,197 @@ def test_long_running(shared_agent_1rp_basic_data_plane):
 ```
 - `@pytest.mark.parametrize` runs the test with different inputs.
 - `@pytest.mark.slow` can be used to select or skip slow tests.
+
+---
+
+## Decorators & Wrapper
+
+* **Our Code:**
+```python 
+def setup_v2_agent_client(region, shared_agent_v2_data_plane):
+    """Setup V2 agent client
+    
+    Args:
+        region: Region name
+        shared_agent_v2_data_plane: Workspace configuration
+        
+    Returns:
+        V2AgentClient instance
+    """
+    print_log(f"V2: Setting up agent client for region {region}")
+    
+    credential = DefaultAzureCredential()
+    agent_client = V2AgentClient(
+        endpoint=shared_agent_v2_data_plane.endpoint,
+        credential=credential,
+        subscription_id=shared_agent_v2_data_plane.subscription_id,
+        resource_group=shared_agent_v2_data_plane.resource_group,
+        workspace_name=shared_agent_v2_data_plane.project_workspace_name
+    )
+    
+    print_log(f"V2: Agent client created successfully")
+    return agent_client
+
+
+def cleanup_v2_resources(agent_client, disposable_list):
+    """Cleanup V2 resources
+    
+    Args:
+        agent_client: V2AgentClient instance
+        disposable_list: List of resources to cleanup
+    """
+    print_log(f"V2: Starting cleanup of {len(disposable_list)} resources")
+    
+    for resource_type, resource_data in reversed(disposable_list):
+        try:
+            if resource_type == agents_constants_v2.V2CleanupResourceType.AGENT_VERSION:
+                agent_name, version = resource_data
+                print_log(f"V2: Cleaning up agent version: {agent_name}/{version}")
+                agent_client.delete_agent_version(agent_name, version)
+            elif resource_type == agents_constants_v2.V2CleanupResourceType.AGENT:
+                agent_name = resource_data
+                print_log(f"V2: Cleaning up agent: {agent_name}")
+                agent_client.delete_agent(agent_name)
+            else:
+                print_log(f"V2: Unknown resource type: {resource_type}", "warning")
+        except Exception as e:
+            print_log(f"V2: Error cleaning up resource: {e}", "error")
+    
+    print_log("V2: Cleanup completed")
+
+
+def v2_agent_client_context(func):
+    """Context manager decorator for V2 agent client setup and teardown"""
+    @wraps(func)
+    def wrapper(region, shared_agent_v2_data_plane, *args, **kwargs):
+        agent_client = setup_v2_agent_client(region, shared_agent_v2_data_plane)
+        disposable_list = []
+        try:
+            func(region, shared_agent_v2_data_plane, agent_client, disposable_list, *args, **kwargs)
+        except Exception as e:
+            print_log(f"V2: Error during test execution: {str(e)}", "error")
+            raise
+        finally:
+            cleanup_v2_resources(agent_client, disposable_list)
+    return wrapper
+
+
+# V2 Test Functions
+
+@with_retry
+@v2_agent_client_context
+def test_v2_create_agent(region, shared_agent_v2_data_plane, agent_client, disposable_list):
+    """Test creating an agent version with hosted container
+    
+    This test:
+    1. Creates an agent version with hosted container
+    2. Verifies the agent version was created successfully
+    """
+    testcase = "test_v2_create_agent"
+    print_log(f"V2: Test case name: {testcase}, test region - {region}")
+
+    # Create agent version
+    agent_name = generate_unique_name("create-test-agent")
+    
+    # Use a test container image
+    test_image = os.environ.get("TEST_AGENT_IMAGE", "mcr.microsoft.com/azureml/aifx/stable-ubuntu2004-cu121-py310-torch230:latest")
+    
+    print_log(f"V2: Creating agent version with name: {agent_name}")
+    agent_version = agent_client.create_agent_version(
+        agent_name=agent_name,
+        image=test_image,
+        cpu="1",
+        memory="2Gi",
+        description="Test hosted agent for create test"
+    )
+    
+    # Add to cleanup list
+    disposable_list.append((
+        agents_constants_v2.V2CleanupResourceType.AGENT_VERSION, 
+        (agent_name, agent_version['version'])
+    ))
+    
+    print_log(f"V2: Created agent version: {agent_version}")
+    
+    # Verify agent version was created
+    assert agent_version['name'] == agent_name, f"Agent name mismatch: {agent_version['name']} != {agent_name}"
+    assert agent_version['version'] is not None, "Agent version is None"
+    assert agent_version['object'] == "agent.version", "Object type mismatch"
+    
+    print_log(f"V2: Test {testcase} passed successfully!")
+
+```
+
+### 1. What is a Decorator in Python?
+A **decorator** is a **function that modifies the behavior of another function**, without changing its actual code.
+It’s a cleaner, reusable way to handle **setup / teardown / error handling / logging / retrying** logic around a function.
+
+**Example:**
+```python
+def decorator(func):
+    def wrapper():
+        print("Before running function")
+        func()
+        print("After running function")
+    return wrapper
+
+@decorator
+def say_hello():
+    print("Hello!")
+
+say_hello()
+```
+
+**Output**:
+```sql
+Before running function
+Hello!
+After running function
+```
+
+* Here, @decorator wraps the say_hello() function inside another function that adds extra logic.
+
+### 2. What is a Wrapper?
+The **wrapper** is the **inner function** inside the decorator — the one that actually runs before and after your original function.
+
+**Example:**
+```python
+def v2_agent_client_context(func):
+    @wraps(func)
+    def wrapper(region, shared_agent_v2_data_plane, *args, **kwargs):
+        ...
+    return wrapper
+```
+* `v2_agent_client_context` → the **decorator**
+* `wrapper(...)` → the `function that wrap`s your test
+* `func(...)` → your **original test function**, e.g. `test_v2_create_agent`
+  
+### 3. Why `@wraps(func)` is used?
+`@wraps(func)` (from `functools`) preserves metadata of the original function like its:
+* `__name__`
+* `__doc__`
+* `__module__`
+
+Otherwise, your test function’s name would show up as just `"wrapper"` in pytest reports, which would be confusing.
+
+### 4. In your code — `@v2_agent_client_context`
+Here’s how it works in your code:
+
+```python
+@with_retry
+@v2_agent_client_context
+def test_v2_create_agent(...):
+```
+
+**Execution Flow:**
+When pytest runs this test:
+* `@v2_agent_client_context` runs first.
+  * It calls `setup_v2_agent_client()` → creates and configures the client.
+  * Passes that client and an empty `disposable_list` to the test function.
+  * When the test finishes (or fails), it runs `cleanup_v2_resources()` to delete created resources.
+  * So, even if the test fails midway, your Azure resources don’t leak.
+
+* `@with_retry` (outer decorator) adds retry logic.
+  * It probably reruns the test automatically if it fails (like flaky network or transient error).
+
+So effectively, you’ve built a **context manager-like test decorator** that handles setup, cleanup, and retries **automatically**.
